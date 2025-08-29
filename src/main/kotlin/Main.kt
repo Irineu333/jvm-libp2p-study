@@ -3,27 +3,63 @@ import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.protocol.Ping
 
 fun main() {
-    val node1 = host {
+
+    print("Enter port: ")
+    val port = readln().toInt()
+
+    val node = host {
         identity { random() }
-        protocols { add(Ping()) }
+        protocols { +Ping() }
         network {
-            listen("/ip4/127.0.0.1/tcp/4001")
+            listen("/ip4/127.0.0.1/tcp/$port")
         }
     }
 
-    val node2 = host {
-        identity { random() }
-        protocols { add(Ping()) }
-        network {
-            listen("/ip4/127.0.0.1/tcp/4002")
+    node.start().get()
+
+    println()
+    println("Node started")
+    println("id: ${node.peerId}")
+    println("address: ${node.listenAddresses().single()}")
+    println()
+
+    do {
+
+        println("1. Connect to peer")
+        println("2. List peers")
+        println("0. Exit")
+        print("> ")
+
+        val op = readln().toInt()
+
+        println()
+
+        when (op) {
+            1 -> {
+                print("Peer address: ")
+                val address = Multiaddr(readln())
+                val connection = node.network.connect(address).get()
+                println("Connected to ${connection.secureSession().remoteId}")
+            }
+
+            2 -> {
+                val connections = node.network.connections
+
+                if (connections.isEmpty()) {
+                    println("None")
+                } else {
+                    println("Peers:")
+                    connections.forEach {
+                        println(it.secureSession().remoteId)
+                    }
+                }
+            }
         }
-    }
 
-    node1.start().get()
-    node2.start().get()
+        println()
 
-    val addr = Multiaddr("/ip4/127.0.0.1/tcp/4001/p2p/${node1.peerId}")
-    node2.network.connect(addr).get()
+    } while (op != 0)
 
-    println("Connected")
+    node.stop().get()
+    println("Node stopped")
 }
