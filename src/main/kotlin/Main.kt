@@ -1,6 +1,6 @@
+import io.libp2p.core.PeerId
 import io.libp2p.core.dsl.host
 import io.libp2p.core.multiformats.Multiaddr
-import io.libp2p.protocol.Ping
 
 fun main() {
 
@@ -9,7 +9,9 @@ fun main() {
 
     val node = host {
         identity { random() }
-        protocols { +Ping() }
+        protocols {
+            +Chat()
+        }
         network {
             listen("/ip4/127.0.0.1/tcp/$port")
         }
@@ -27,6 +29,7 @@ fun main() {
 
         println("1. Connect to peer")
         println("2. List peers")
+        println("3. Send message")
         println("0. Exit")
         print("> ")
 
@@ -53,6 +56,22 @@ fun main() {
                         println(it.secureSession().remoteId)
                     }
                 }
+            }
+
+            3 -> {
+
+                print("Peer: ")
+                val peerId = readln()
+
+                val chatController = node.newStream<ChatController>(
+                    listOf("/chat/1.0.0"),
+                    PeerId.fromBase58(peerId),
+                ).controller.get()
+
+                print("Message: ")
+                val message = readln()
+
+                chatController.send(message)
             }
         }
 
