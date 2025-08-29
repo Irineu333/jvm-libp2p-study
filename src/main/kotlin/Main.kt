@@ -1,23 +1,29 @@
 import io.libp2p.core.dsl.host
+import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.protocol.Ping
 
 fun main() {
-    val node = host {
-        identity {
-            random()
-        }
-
-        protocols {
-            add(Ping())
-        }
-
+    val node1 = host {
+        identity { random() }
+        protocols { add(Ping()) }
         network {
-            listen("/ip4/0.0.0.0/tcp/0")
+            listen("/ip4/127.0.0.1/tcp/4001")
         }
     }
 
-    node.start().get()
+    val node2 = host {
+        identity { random() }
+        protocols { add(Ping()) }
+        network {
+            listen("/ip4/127.0.0.1/tcp/4002")
+        }
+    }
 
-    println("id: ${node.peerId}")
-    println("address: ${node.listenAddresses()}")
+    node1.start().get()
+    node2.start().get()
+
+    val addr = Multiaddr("/ip4/127.0.0.1/tcp/4001/p2p/${node1.peerId}")
+    node2.network.connect(addr).get()
+
+    println("Connected")
 }
