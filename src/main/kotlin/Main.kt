@@ -1,9 +1,13 @@
 import io.libp2p.core.PeerId
 import io.libp2p.core.dsl.host
 import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.discovery.MDnsDiscovery
 import io.libp2p.protocol.Ping
+import java.net.Inet4Address
 
 fun main() {
+
+    val address = Inet4Address.getByName("0.0.0.0")
 
     val node = host {
         identity { random() }
@@ -11,7 +15,7 @@ fun main() {
             +Ping()
         }
         network {
-            listen("/ip4/127.0.0.1/tcp/0")
+            listen("/ip4/${address.hostAddress}/tcp/0")
         }
     }
 
@@ -22,6 +26,19 @@ fun main() {
     println("id: ${node.peerId}")
     println("address: ${node.listenAddresses().single()}")
     println()
+
+    val peerFinder = MDnsDiscovery(node, address = address)
+
+    peerFinder.newPeerFoundListeners += newPeer@{ peerInfo ->
+
+        if (peerInfo.peerId == node.peerId) return@newPeer
+
+        node.network.connect(
+            peerInfo.addresses.first().withP2P(peerInfo.peerId)
+        )
+    }
+
+    peerFinder.start()
 
     do {
 
@@ -49,7 +66,7 @@ fun main() {
                 connections?.let {
                     println("Peers:")
                     connections.forEach {
-                        println(it.secureSession().remoteId)
+                        println("${it.secureSession().remoteId}, isInitiator = ${it.isInitiator}")
                     }
                 } ?: println("No peers connected")
             }
