@@ -45,6 +45,7 @@ fun main() {
         println("1. Connect to peer")
         println("2. List peers")
         println("3. Ping")
+        println("4. Chat")
         println("0. Exit")
         print("> ")
 
@@ -82,6 +83,46 @@ fun main() {
                     }.thenAccept { latency ->
                         println("Ping: $latency ms")
                     }.join()
+            }
+
+            4 -> {
+
+                val connections = node.network.connections.distinctBy {
+                    it.secureSession().remoteId
+                }
+
+                if (connections.isEmpty()) {
+                    println("No peers connected")
+                } else {
+
+                    println("Chat initiated.")
+                    println("Type 'exit' to quit.")
+
+                    val chat = Chat(
+                        onMessage = { peerId, message ->
+                            println("$peerId > $message")
+                        }
+                    )
+
+                    node.addProtocolHandler(chat)
+
+                    do {
+                        val message = readlnOrNull().orEmpty()
+
+                        connections.map { connection ->
+                            node.newStream<ChatController>(
+                                listOf("chat/0.1.0"),
+                                connection
+                            )
+                        }.forEach { chat ->
+                            chat.controller.thenAccept {
+                                it.send(message)
+                            }
+                        }
+                    } while (message != "exit")
+
+                    node.removeProtocolHandler(chat)
+                }
             }
         }
 
